@@ -1,0 +1,93 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "bad5851b6d745d5f178edf711ed399cb",
+    "packages": [
+        {
+            "name": "zoujingli/ip2region",
+            "version": "v3.0.7",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/zoujingli/ip2region.git",
+                "reference": "85ae8f2b5e64e549e99024952ab63d62f7f0ec82"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/zoujingli/ip2region/zipball/85ae8f2b5e64e549e99024952ab63d62f7f0ec82",
+                "reference": "85ae8f2b5e64e549e99024952ab63d62f7f0ec82",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.4.0"
+            },
+            "suggest": {
+                "ext-opcache": "启用 OPcache 以获得更好的性能"
+            },
+            "bin": [
+                "bin/ip2down"
+            ],
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "3.0.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "function.php"
+                ],
+                "psr-4": {
+                    "ip2region\\": "src/ip2region/"
+                },
+                "classmap": [
+                    "src/Ip2Region.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Anyon",
+                    "email": "zoujingli@qq.com",
+                    "homepage": "https://thinkadmin.top"
+                }
+            ],
+            "description": "ip2region v3.0 for PHP - 企业级 IP 地理位置查询库，支持 IPv4 和 IPv6，多种缓存策略，零依赖，开箱即用",
+            "homepage": "https://github.com/zoujingli/Ip2Region",
+            "keywords": [
+                "IP",
+                "Ip2Region",
+                "composer",
+                "geolocation",
+                "ipv4",
+                "ipv6",
+                "location",
+                "php",
+                "企业级",
+                "智能加载",
+                "缓存策略",
+                "零依赖",
+                "高性能"
+            ],
+            "support": {
+                "issues": "https://github.com/zoujingli/ip2region/issues",
+                "source": "https://github.com/zoujingli/ip2region/tree/v3.0.7"
+            },
+            "time": "2025-10-21T05:16:35+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": {},
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": {},
+    "platform-dev": {},
+    "plugin-api-version": "2.6.0"
+}

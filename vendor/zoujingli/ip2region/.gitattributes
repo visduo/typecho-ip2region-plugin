@@ -1,0 +1,19 @@
+# 文本文件使用 LF 换行符
+*.php text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.txt text eol=lf
+
+# 二进制文件
+*.xdb binary
+*.gz binary
+*.zip binary
+
+# 分片文件使用 Git LFS（如果需要）
+# db/ip2region_v4.xdb.part*.gz filter=lfs diff=lfs merge=lfs -text
+
+# 忽略 vendor 目录的换行符检查
+/vendor/ -text
+
+# 确保脚本文件可执行
+bin/ip2down text eol=lf

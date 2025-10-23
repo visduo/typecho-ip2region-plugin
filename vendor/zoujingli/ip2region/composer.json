@@ -1,0 +1,72 @@
+{
+  "type": "library",
+  "name": "zoujingli/ip2region",
+  "homepage": "https://github.com/zoujingli/Ip2Region",
+  "description": "ip2region v3.0 for PHP - 企业级 IP 地理位置查询库，支持 IPv4 和 IPv6，多种缓存策略，零依赖，开箱即用",
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Anyon",
+      "email": "zoujingli@qq.com",
+      "homepage": "https://thinkadmin.top"
+    }
+  ],
+  "require": {
+    "php": ">=5.4.0"
+  },
+  "suggest": {
+    "ext-opcache": "启用 OPcache 以获得更好的性能"
+  },
+  "keywords": [
+    "ip2region",
+    "ip",
+    "location",
+    "geolocation",
+    "ipv4",
+    "ipv6",
+    "php",
+    "composer",
+    "缓存策略",
+    "智能加载",
+    "高性能",
+    "企业级",
+    "零依赖"
+  ],
+  "bin": [
+    "bin/ip2down"
+  ],
+  "autoload": {
+    "psr-4": {
+      "ip2region\\": "src/ip2region/"
+    },
+    "classmap": [
+      "src/Ip2Region.php"
+    ],
+    "files": [
+      "function.php"
+    ]
+  },
+  "scripts": {
+    "demo": "php tests/demo.php",
+    "test": "php tests/demo.php",
+    "query": "php -r \"require 'vendor/autoload.php'; echo ip2region(\\$argv[1]) . PHP_EOL;\"",
+    "query:batch": "php -r \"require 'vendor/autoload.php'; \\$searcher = new \\Ip2Region(); echo json_encode(\\$searcher->batchSearch(explode(',', \\$argv[1])), JSON_UNESCAPED_UNICODE) . PHP_EOL;\"",
+    "download": "php bin/ip2down download all",
+    "download:v4": "php bin/ip2down download v4",
+    "download:v6": "php bin/ip2down download v6",
+    "performance": "php tests/quick_performance_test.php",
+    "stats": "php -r \"require 'vendor/autoload.php'; \\$searcher = new \\Ip2Region(); \\$stats = \\$searcher->getStats(); echo 'Memory Usage: ' . round(\\$stats['memory_usage'] / 1024 / 1024, 2) . ' MB' . PHP_EOL; echo 'Cache Policy: ' . \\$stats['cache_policy'] . PHP_EOL; echo 'IPv4 Loaded: ' . (\\$stats['v4_loaded'] ? 'Yes' : 'No') . PHP_EOL; echo 'IPv6 Loaded: ' . (\\$stats['v6_loaded'] ? 'Yes' : 'No') . PHP_EOL;\"",
+    "version": "php -r \"require 'vendor/autoload.php'; echo 'Ip2Region Version: 3.0.5' . PHP_EOL;\""
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "extra": {
+    "branch-alias": {
+      "dev-master": "3.0.x-dev"
+    }
+  }
+}

@@ -1,0 +1,400 @@
+#!/usr/bin/env php
+<?php
+/**
+ * ip2region 数据库下载管理工具 v3.0
+ * 
+ * 使用方式：
+ * - 下载：./vendor/bin/ip2down download [v4|v6|all]
+ * - 列表：./vendor/bin/ip2down list
+ * - 清理：./vendor/bin/ip2down clear
+ * - 测试：./vendor/bin/ip2down test
+ * - 帮助：./vendor/bin/ip2down help
+ * 
+ * @author Anyon <zoujingli@qq.com>
+ * @version 3.0.5
+ */
+
+// 环境检查
+if (php_sapi_name() !== 'cli') {
+    die('此脚本只能在命令行环境下运行');
+}
+
+/**
+ * 统一的路径检测函数
+ * 
+ * @return array ['rootDir' => string, 'isProduction' => bool]
+ */
+function detectProjectPath()
+{
+    $toolPath = __FILE__;
+
+    // 如果通过 php -r 执行，使用 __DIR__ 作为参考
+    if ($toolPath === 'Command line code' || strpos($toolPath, 'php') !== false) {
+        $toolPath = __DIR__ . DIRECTORY_SEPARATOR . 'ip2down';
+    }
+    
+    // 只有两种情况：
+    // 1. vendor/zoujingli/ip2region/bin/ip2down (Composer 安装) - 最具体
+    // 2. bin/ip2down (开发模式) - 最通用
+    
+    if (strpos($toolPath, 'vendor' . DIRECTORY_SEPARATOR . 'zoujingli' . DIRECTORY_SEPARATOR . 'ip2region' . DIRECTORY_SEPARATOR . 'bin') !== false) {
+        // 情况1：vendor/zoujingli/ip2region/bin/ip2down
+        // 需要往上5级：vendor/zoujingli/ip2region/bin -> zoujingli/ip2region -> vendor -> project_root
+        $rootDir = dirname($toolPath, 5);
+        $isProduction = true;
+    } else {
+        // 情况2：bin/ip2down (开发模式)
+        // bin/ip2down -> bin，再向上1级到项目根目录
+        $rootDir = dirname($toolPath); // bin/ip2down -> bin
+        $rootDir = dirname($rootDir);  // bin -> project_root
+        $isProduction = false;
+    }
+
+    // 验证找到的根目录是否正确（包含 composer.json）
+    if (!file_exists($rootDir . DIRECTORY_SEPARATOR . 'composer.json')) {
+        die('错误：无法找到项目根目录，请确保在正确的 Composer 项目中使用此工具');
+    }
+
+    return ['rootDir' => $rootDir, 'isProduction' => $isProduction];
+}
+
+// 路径检测和自动加载
+$pathInfo = detectProjectPath();
+$rootDir = $pathInfo['rootDir'];
+$autoloadFile = $rootDir . '/vendor/autoload.php';
+
+if (!file_exists($rootDir . '/composer.json') || !file_exists($autoloadFile)) {
+    die('错误：无法找到项目根目录或 autoload 文件');
+}
+
+require_once $autoloadFile;
+
+// 数据库管理器类
+class DatabaseManager
+{
+    private $dbDir;
+    private $config = array(
+        'v4' => array(
+            'url' => 'https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v4.xdb',
+            'file' => 'ip2region_v4.xdb',
+            'desc' => 'IPv4 数据库',
+            'minSize' => 10 * 1024 * 1024
+        ),
+        'v6' => array(
+            'url' => 'https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v6.xdb',
+            'file' => 'ip2region_v6.xdb',
+            'desc' => 'IPv6 数据库',
+            'minSize' => 30 * 1024 * 1024  // 30MB，实际文件约 34.6MB
+        )
+    );
+
+    public function __construct()
+    {
+        $pathInfo = detectProjectPath();
+        $projectRoot = $pathInfo['rootDir'];
+
+        $this->dbDir = $projectRoot . '/vendor/bin/ip2data';
+        if (!is_dir($this->dbDir)) {
+            mkdir($this->dbDir, 0755, true);
+        }
+    }
+
+    public function download($version, $callback = null)
+    {
+        $versions = $version === 'all' ? array('v4', 'v6') : array($version);
+        $results = array();
+
+        foreach ($versions as $ver) {
+            if (!isset($this->config[$ver])) continue;
+
+            $config = $this->config[$ver];
+            $filePath = $this->dbDir . '/' . $config['file'];
+
+            if ($callback) $callback("开始下载 {$config['desc']}...", $ver);
+
+            try {
+                $result = $this->downloadFile($config['url'], $filePath, $config['minSize'], $callback, $ver);
+                $results[$ver] = $result;
+            } catch (Exception $e) {
+                $results[$ver] = array('success' => false, 'error' => $e->getMessage());
+            }
+        }
+
+        return $results;
+    }
+
+    private function downloadFile($url, $filePath, $minSize, $callback, $version)
+    {
+        $context = stream_context_create(array(
+            'http' => array('timeout' => 300)
+        ));
+
+        $input = fopen($url, 'rb', false, $context);
+        if (!$input) throw new Exception("无法打开下载链接: $url");
+
+        $output = fopen($filePath, 'wb');
+        if (!$output) {
+            fclose($input);
+            throw new Exception("无法创建文件: $filePath");
+        }
+
+        $bytesCopied = 0;
+        $startTime = time();
+        $chunkSize = 8192; // 8KB chunks for better memory management
+
+        try {
+            while (!feof($input)) {
+                $data = fread($input, $chunkSize);
+                if ($data === false) break;
+
+                $written = fwrite($output, $data);
+                if ($written === false) break;
+
+                $bytesCopied += $written;
+
+                // 减少回调频率，提高性能
+                if ($callback && $bytesCopied % (1024 * 1024) == 0) {
+                    $this->showDownloadProgress($callback, $bytesCopied, $startTime, $version);
+                }
+            }
+        } catch (Exception $e) {
+        }
+        fclose($input);
+        fclose($output);
+        if ($bytesCopied < $minSize) {
+            unlink($filePath);
+            throw new Exception("下载文件过小，可能不完整");
+        }
+
+        return array('success' => true, 'size' => $bytesCopied, 'filepath' => $filePath);
+    }
+
+    private function showDownloadProgress($callback, $bytesCopied, $startTime, $version)
+    {
+        $elapsed = time() - $startTime;
+        $speed = $elapsed > 0 ? $bytesCopied / $elapsed : 0;
+        $message = "已下载: " . $this->formatBytes($bytesCopied);
+        if ($speed > 0) {
+            $message .= " 速度: " . $this->formatBytes($speed) . "/s";
+        }
+        $callback($message, $version);
+    }
+
+    public function listFiles()
+    {
+        $files = array();
+        foreach ($this->config as $ver => $config) {
+            $filePath = $this->dbDir . '/' . $config['file'];
+            if (file_exists($filePath)) {
+                $files[] = array(
+                    'filename' => $config['file'],
+                    'type' => $ver === 'v4' ? 'IPv4' : 'IPv6',
+                    'size' => filesize($filePath),
+                    'modified' => filemtime($filePath)
+                );
+            }
+        }
+        return $files;
+    }
+
+    public function clearCache()
+    {
+        $count = 0;
+        
+        // 清理下载的数据库文件
+        foreach ($this->config as $ver => $config) {
+            $filePath = $this->dbDir . '/' . $config['file'];
+            if (file_exists($filePath)) {
+                if (unlink($filePath)) {
+                    $count++;
+                }
+            }
+        }
+        
+        // 清理临时文件
+        foreach (glob($this->dbDir . '/*.tmp') as $file) {
+            if (unlink($file)) $count++;
+        }
+        
+        return $count;
+    }
+
+    private function formatBytes($bytes, $precision = 2)
+    {
+        $units = array('B', 'KB', 'MB', 'GB', 'TB');
+        for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
+            $bytes /= 1024;
+        }
+        return round($bytes, $precision) . ' ' . $units[$i];
+    }
+}
+
+// 下载器类
+class DatabaseDownloader
+{
+    private $manager;
+
+    public function __construct($dbManager)
+    {
+        $this->manager = $dbManager;
+    }
+
+    public function run($args)
+    {
+        if (empty($args) || in_array($args[0], array('-h', '--help', 'help'))) {
+            $this->showHelp();
+            return;
+        }
+
+        $command = $args[0];
+        switch ($command) {
+            case 'download':
+                $this->download($args);
+                break;
+            case 'list':
+                $this->list();
+                break;
+            case 'clear':
+                $this->clear();
+                break;
+            case 'test':
+                $this->test();
+                break;
+            default:
+                echo "未知命令: $command\n";
+                $this->showHelp();
+        }
+    }
+
+    private function showHelp()
+    {
+        echo "ip2region 数据库下载工具 v3.0\n\n";
+        echo "用法: ip2down <命令> [选项]\n\n";
+        echo "命令:\n";
+        echo "  download [v4|v6|all]  下载数据库文件\n";
+        echo "  list                  列出已下载文件\n";
+        echo "  clear                 清除下载的数据库文件\n";
+        echo "  test                  测试数据库功能\n";
+        echo "  help                  显示帮助信息\n";
+    }
+
+    private function download($args)
+    {
+        $version = isset($args[1]) ? $args[1] : 'all';
+
+        try {
+            $results = $this->manager->download($version, function ($message, $version = null) {
+                $this->showProgress($message, $version);
+            });
+            $this->showDownloadResults($results);
+        } catch (Exception $e) {
+            echo "\n❌ 下载失败: " . $e->getMessage() . "\n";
+        }
+    }
+
+    private function showProgress($message, $version = null)
+    {
+        if (strpos($message, '已下载:') === 0) {
+            echo "\r" . str_pad($message, 80, ' ') . "\r";
+            flush();
+        } else {
+            echo $message . "\n";
+        }
+    }
+
+    private function showDownloadResults($results)
+    {
+        echo "\n\n下载完成！\n";
+        foreach ($results as $ver => $result) {
+            if ($result['success']) {
+                echo "✅ {$ver}: " . $this->formatBytes($result['size']) . "\n";
+            }
+        }
+    }
+
+    private function formatBytes($bytes, $precision = 2)
+    {
+        $units = array('B', 'KB', 'MB', 'GB', 'TB');
+        for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
+            $bytes /= 1024;
+        }
+        return round($bytes, $precision) . ' ' . $units[$i];
+    }
+
+    private function list()
+    {
+        echo "已下载的数据库文件：\n\n";
+
+        $files = $this->manager->listFiles();
+        if (empty($files)) {
+            echo "❌ 没有找到数据库文件\n";
+            echo "请运行: ip2down download all\n";
+            return;
+        }
+
+        foreach ($files as $file) {
+            echo "📁 {$file['filename']}\n";
+            echo "   类型: {$file['type']}\n";
+            echo "   大小: " . $this->formatBytes($file['size']) . "\n";
+            echo "   修改时间: " . date('Y-m-d H:i:s', $file['modified']) . "\n\n";
+        }
+    }
+
+    private function clear()
+    {
+        echo "正在清除下载的数据库文件...\n";
+
+        $count = $this->manager->clearCache();
+        echo "✅ 下载的数据库文件已清除 ($count 个文件)\n";
+        echo "ℹ️  注意：内置数据库文件不会被清除\n";
+    }
+
+    private function test()
+    {
+        echo "正在测试数据库功能...\n\n";
+
+        try {
+            $searcher = new \Ip2Region();
+            $this->testIPv4($searcher);
+            $this->testIPv6($searcher);
+            echo "\n✅ 数据库功能测试通过\n";
+        } catch (Exception $e) {
+            $this->showTestError($e);
+        }
+    }
+
+    private function testIPv4($searcher)
+    {
+        echo "测试 IPv4 查询:\n";
+        try {
+            $result = $searcher->simple('61.142.118.231');
+            echo "  61.142.118.231 -> $result\n";
+        } catch (Exception $e) {
+            echo "  ❌ IPv4 查询失败: " . $e->getMessage() . "\n";
+            throw $e;
+        }
+    }
+
+    private function testIPv6($searcher)
+    {
+        echo "测试 IPv6 查询:\n";
+        try {
+            $result = $searcher->simple('2400:3200::1');
+            echo "  2400:3200::1 -> $result\n";
+        } catch (Exception $e) {
+            echo "  ❌ IPv6 查询失败: " . $e->getMessage() . "\n";
+            throw $e;
+        }
+    }
+
+    private function showTestError($e)
+    {
+        echo "❌ 测试失败: " . $e->getMessage() . "\n";
+        echo "请确保已下载数据库文件: ip2down download all\n";
+    }
+}
+
+// 主程序入口
+$dbManager = new DatabaseManager();
+$downloader = new DatabaseDownloader($dbManager);
+$downloader->run(array_slice($argv, 1));
