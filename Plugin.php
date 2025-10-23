@@ -20,9 +20,7 @@ class ip2region_Plugin implements Typecho_Plugin_Interface
      * @return void
      * @throws Typecho_Plugin_Exception
      */
-    public static function activate() {
-        return _t('插件已启用');
-    }
+    public static function activate() {}
     
     /**
      * 禁用插件方法,如果禁用失败,直接抛出异常
@@ -32,9 +30,7 @@ class ip2region_Plugin implements Typecho_Plugin_Interface
      * @return void
      * @throws Typecho_Plugin_Exception
      */
-    public static function deactivate() {
-        return _t('插件已禁用');
-    }
+    public static function deactivate() {}
     
     /**
      * 获取插件配置面板
