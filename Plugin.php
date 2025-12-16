@@ -5,7 +5,7 @@
  * @package ip2region
  * @author 多仔
  * @version 1.0
- * @link https://www.duozai.cn
+ * @link https://www.duox.dev
  */
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
