@@ -10,11 +10,13 @@ Typecho 主题配套的客户端 IP 地址归属地信息查询插件，基于 [
 
 # 适配指南
 
-三方主题适配该插件，在适当的地方调用如下代码：
+三方主题适配该插件，需要：
+
+1. 在适当的位置调用查询方法：`ip2region_Plugin::get(IP地址);`
+
+示例：
 
 ```php
-// 调用方式：ip2region_Plugin::get(IP地址);
-// 示例代码：
 echo '评论于 '.ip2region_Plugin::get($comments->ip);
 ```
 
